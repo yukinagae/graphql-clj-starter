@@ -5,179 +5,80 @@
             [graphql-clj.schema-validator :as sv]
             [clojure.core.match :as match]))
 
-(def starter-schema "# enum for episode
-  enum Episode { NEWHOPE, EMPIRE, JEDI }
+;; graphql schema defined
+(def starter-schema "
 
-# interface for Chapter 
-interface Character {
-  id: String!
-  name: String
-  friends: [Character]
-  appearsIn: [Episode]
+type User {
+  id: Int!
+  name: String!
+  email: String!
+  posts: [Post]
 }
 
-# human implements character
-type Human implements Character {
-  id: String!
-  name: String
-  # friends of human
-  friends: [Character]
-  appearsIn: [Episode]
-  homePlanet: String
+type Post {
+  id: Int!
+  title: String!
 }
 
-type Droid implements Character {
-  id: String!
-  name: String
-  friends: [Character]
-  appearsIn: [Episode]
-  primaryFunction: String
-}
-
-# Root Query
 type Query {
-  # return hero from a particular episode
-  hero(episode: Episode): Character  
-  human(id: String!): Human
-  droid(id: String!): Droid
-  hello(world: WorldInput): String
-  objectList: [Object!]!
-  nestedInput(nested: NestedInput): String
-}
-
-type Object {
-  id: String!
-}
-
-input WorldInput {
-  text: String
-}
-
-input NestedInput {
-  value: WorldInput
-}
-
-type Mutation {
-  # create human for given name, it accepts list of friends as variable
-  createHuman(name: String, friends: [String]): Human
+  user(id: Int!): User!
 }
 
 schema {
   query: Query
-  mutation: Mutation
 }")
 
-(def luke {:id "1000",
-           :name "Luke Skywalker"
-           :friends ["1002" "1003" "2000" "2001" ]
-           :appearsIn [ 4, 5, 6 ],
-           :homePlanet "Tatooine"})
-
-(def vader {:id "1001",
-            :name "Darth Vader"
-            :friends [ "1004" ]
-            :appearsIn [ 4, 5, 6 ]
-            :homePlanet "Tatooine"})
-
-(def han {
-          :id "1002",
-          :name "Han Solo",
-          :friends [ "1000", "1003", "2001" ],
-          :appearsIn [ 4, 5, 6 ],
-})
-
-(def leia {
-           :id "1003",
-           :name "Leia Organa",
-           :friends [ "1000", "1002", "2000", "2001" ],
-           :appearsIn [ 4, 5, 6 ],
-           :homePlanet "Alderaan",
-})
-
-(def tarkin {
-             :id "1004",
-             :name "Wilhuff Tarkin",
-             :friends [ "1001" ],
-             :appearsIn [ 4 ],
-             })
-
-(def humanData  (atom {
-                       "1000" luke
-                       "1001" vader
-                       "1002" han
-                       "1003" leia
-                       "1004" tarkin}))
-
-(def threepio {
-               :id "2000",
-               :name "C-3PO",
-               :friends [ "1000", "1002", "1003", "2001" ],
-               :appearsIn [ 4, 5, 6 ],
-               :primaryFunction "Protocol",
-               })
-
-(def artoo {
-            :id "2001",
-            :name "R2-D2",
-            :friends [ "1000", "1002", "1003" ],
-            :appearsIn [ 4, 5, 6 ],
-            :primaryFunction "Astromech",
+;; user dummy data
+(def user1 {:id 1
+            :name "user1"
+            :email "1@example.com"
+            :posts ["2" "3"]
+            })
+(def user2 {:id 2
+            :name "user2"
+            :email "2@example.com"
+            :posts ["1"]
+            })
+(def user3 {:id 3
+            :name "user3"
+            :email "3@example.com"
+            :posts []
             })
 
-(def droidData (atom {"2000" threepio
-                      "2001" artoo}))
+(def userData (atom {
+                     "1" user1
+                     "2" user2
+                     "3" user3
+                     }))
 
-(defn get-human [id]
-  (get @humanData (str id))) ; BUG: String should be parsed as string instead of int
+;; post dummy data
+(def post1 {:id 1
+            :title "post1"
+            })
+(def post2 {:id 2
+            :title "post2"
+            })
+(def post3 {:id 3
+            :title "post3"
+            })
 
-(defn get-droid [id]
-  (get @droidData (str id))) ; BUG: String should be parsed as string instead of int
+(def postData (atom {
+                     "1" post1
+                     "2" post2
+                     "3" post3
+                     }))
 
-(defn get-character [id]
-  (or (get-human id) ; BUG: String should be parsed as string instead of int
-      (get-droid id)))
+;; get functions
+(defn get-user [id] (get @userData (str id)))
+(defn get-post [id] (get @postData (str id)))
+(defn get-posts [user] (map get-post (:posts user)))
 
-(defn get-friends [character]
-  (map get-character (:friends character)))
-
-(defn get-hero [episode]
-  (if (= episode 5)
-    luke
-    artoo))
-
-(def human-id (atom 2050))
-
-(defn create-human [args]
-  (let [new-human-id (str (swap! human-id inc))
-        new-human {:id new-human-id
-                   :name (get args "name")
-                   :friends (get args "friends")}]
-    (swap! humanData assoc new-human-id new-human)
-    new-human))
-
+;; root resolver
 (defn starter-resolver-fn [type-name field-name]
   (match/match
    [type-name field-name]
-   ["Query" "hero"] (fn [context parent args]
-                      (get-hero (:episode args)))
-   ["Query" "human"] (fn [context parent args]
-                       (get-human (str (get args "id"))))
-   ["Query" "droid"] (fn [context parent args]
-                       (get-droid (str (get args "id"))))
-   ["Query" "objectList"] (fn [context parent args]
-                            (repeat 3 {:id (java.util.UUID/randomUUID)}))
-   ;; Hacky!!! Should use resolver for interface
-   ["Human" "friends"] (fn [context parent args]
-                         (get-friends parent))
-   ["Droid" "friends"] (fn [context parent args]
-                         (get-friends parent))
-   ["Character" "friends"] (fn [context parent args]
-                             (get-friends parent))
-   ["Mutation" "createHuman"] (fn [context parent args]
-                                (create-human args))
-   ["Query" "hello"] (fn [context parent args]
-                       (let [world (get args "world")]
-                         world))
+   ["Query" "user"] (fn [context parent args] (get-user (get args "id")))
+   ["User" "posts"] (fn [context parent args] (get-posts parent))
    :else nil))
 
 (def validated-schema (sv/validate-schema starter-schema))
