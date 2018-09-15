@@ -5,58 +5,8 @@
             [graphql-clj.schema-validator :as sv]
             [clojure.core.match :as match]
             [clj-http.client :as client]
+            [graphql-clj-starter.schema :as schema]
             ))
-
-;; graphql schema defined
-(def starter-schema "
-
-type Query {
-  users: [User!]!
-  user(id: Int!): User
-  posts: [Post!]!
-  post(id: Int!): Post
-}
-
-type User {
-  id: Int!
-  name: String!
-  username: String!
-  email: String!
-  address: Address!
-  phone: String!
-  website: String!
-  company: Company!
-}
-
-type Address {
-  street: String!
-  suite: String!
-  city: String!
-  zipcode: String!
-  geo: GEO!
-}
-
-type Company {
-  name: String!
-  catchPhrase: String!
-  bs: String!
-}
-
-type GEO {
-  lat: String!
-  lng: String!
-}
-
-type Post {
-  id: Int!
-  userId: Int!
-  title: String!
-  body: String!
-}
-
-schema {
-  query: Query
-}")
 
 (def base_url "https://jsonplaceholder.typicode.com")
 
@@ -80,7 +30,7 @@ schema {
    ["Query" "post"] (fn [context parent args] (get-post (get args "id")))
    :else nil))
 
-(def validated-schema (sv/validate-schema starter-schema))
+(def validated-schema (sv/validate-schema schema/starter-schema))
 
 (defn execute
   [query variables operation-name]
