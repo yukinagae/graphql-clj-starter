@@ -3,82 +3,81 @@
             [graphql-clj.executor :as executor]
             [graphql-clj.query-validator :as qv]
             [graphql-clj.schema-validator :as sv]
-            [clojure.core.match :as match]))
+            [clojure.core.match :as match]
+            [clj-http.client :as client]
+            ))
 
 ;; graphql schema defined
 (def starter-schema "
 
+type Query {
+  users: [User!]!
+  user(id: Int!): User
+  posts: [Post!]!
+  post(id: Int!): Post
+}
+
 type User {
   id: Int!
   name: String!
+  username: String!
   email: String!
-  posts: [Post]
+  address: Address!
+  phone: String!
+  website: String!
+  company: Company!
+}
+
+type Address {
+  street: String!
+  suite: String!
+  city: String!
+  zipcode: String!
+  geo: GEO!
+}
+
+type Company {
+  name: String!
+  catchPhrase: String!
+  bs: String!
+}
+
+type GEO {
+  lat: String!
+  lng: String!
 }
 
 type Post {
   id: Int!
+  userId: Int!
   title: String!
-}
-
-type Query {
-  user(id: Int!): User!
+  body: String!
 }
 
 schema {
   query: Query
 }")
 
-;; user dummy data
-(def user1 {:id 1
-            :name "user1"
-            :email "1@example.com"
-            :posts ["2" "3"]
-            })
-(def user2 {:id 2
-            :name "user2"
-            :email "2@example.com"
-            :posts ["1"]
-            })
-(def user3 {:id 3
-            :name "user3"
-            :email "3@example.com"
-            :posts []
-            })
+(def base_url "https://jsonplaceholder.typicode.com")
 
-(def userData (atom {
-                     "1" user1
-                     "2" user2
-                     "3" user3
-                     }))
-
-;; post dummy data
-(def post1 {:id 1
-            :title "post1"
-            })
-(def post2 {:id 2
-            :title "post2"
-            })
-(def post3 {:id 3
-            :title "post3"
-            })
-
-(def postData (atom {
-                     "1" post1
-                     "2" post2
-                     "3" post3
-                     }))
+;; common http get function
+(defn get-from-server [url]
+  (get (client/get url {:as :json}) :body))
 
 ;; get functions
-(defn get-user [id] (get @userData (str id)))
-(defn get-post [id] (get @postData (str id)))
-(defn get-posts [user] (map get-post (:posts user)))
+(defn get-users [] (get-from-server (str base_url "/users")))
+(defn get-user [id] (get-from-server (str base_url "/users/" id)))
+(defn get-posts [] (get-from-server (str base_url "/posts")))
+(defn get-post [id] (get-from-server (str base_url "/posts/" id)))
 
 ;; root resolver
 (defn starter-resolver-fn [type-name field-name]
   (match/match
    [type-name field-name]
+   ["Query" "users"] (fn [context parent args] (get-users))
    ["Query" "user"] (fn [context parent args] (get-user (get args "id")))
-   ["User" "posts"] (fn [context parent args] (get-posts parent))
+   ["Query" "posts"] (fn [context parent args] (get-posts))
+   ["Query" "post"] (fn [context parent args] (get-post (get args "id")))
    :else nil))
 
 (def validated-schema (sv/validate-schema starter-schema))
