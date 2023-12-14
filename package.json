@@ -10,8 +10,8 @@
     "graphiql": "^0.10.2",
     "graphql": "^0.10.1",
     "isomorphic-fetch": "^2.2.1",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react": "^15.7.0",
+    "react-dom": "^15.7.0"
   },
   "scripts": {
     "start": "react-scripts start",
